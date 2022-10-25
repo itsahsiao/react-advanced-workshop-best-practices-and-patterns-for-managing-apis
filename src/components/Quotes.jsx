@@ -8,7 +8,7 @@ const PENDING = "PENDING";
 const SUCCESS = "SUCCESS";
 const ERROR = "ERROR";
 
-const Quotes = props => {
+const Quotes = (props) => {
   const [quotes, setQuotes] = useState([]);
   const [page, setPage] = useState(1);
   const [form, setForm] = useState({
@@ -19,25 +19,28 @@ const Quotes = props => {
   const abortRef = useRef({});
   const [fetchQuotesStatus, setFetchQuotesStatus] = useState(IDLE);
 
-  const onFormChange = e => {
-    setForm(state => ({
+  const onFormChange = (e) => {
+    setForm((state) => ({
       ...state,
       [e.target.name]: e.target.value,
     }));
   };
 
-  const initFetchQuotes = async page => {
+  const initFetchQuotes = async (page) => {
     try {
       if (typeof abortRef.current === "function") {
         abortRef.current();
       }
-      const controller = new AbortController();
-      abortRef.current = controller.abort.bind(controller);
+      // const controller = new AbortController();
+      // abortRef.current = controller.abort.bind(controller);
       setFetchQuotesStatus(PENDING);
       const quotesData = await fetchQuotes(
         { page },
         {
-          signal: controller.signal,
+          // signal: controller.signal,
+          abort: (canceller) => {
+            abortRef.current = canceller;
+          },
         }
       );
 
@@ -46,7 +49,7 @@ const Quotes = props => {
       setQuotes(quotesData.data);
       setFetchQuotesStatus(SUCCESS);
     } catch (error) {
-      if (error.name === "CanceledError") {
+      if (error.aborted) {
         console.warn(`Request for page ${page} was cancelled`);
       } else {
         console.error(error);
@@ -56,20 +59,20 @@ const Quotes = props => {
   };
 
   const onNext = () => {
-    setPage(page => page + 1);
+    setPage((page) => page + 1);
   };
 
   const onPrev = () => {
     if (page === 1) return;
-    setPage(page => page - 1);
+    setPage((page) => page - 1);
   };
 
-  const onSubmitQuote = async e => {
+  const onSubmitQuote = async (e) => {
     e.preventDefault();
     const response = await postQuote(form);
     if (response.data.id) {
       const { id, quote, author } = response.data;
-      setQuotes(quotes => [
+      setQuotes((quotes) => [
         {
           id,
           quote,
@@ -116,7 +119,7 @@ const Quotes = props => {
       </div>
       <h2 className="font-semibold text-2xl mb-4">Quotes</h2>
       <div>
-        {quotes.map(quote => {
+        {quotes.map((quote) => {
           return (
             <blockquote
               key={quote.id}
