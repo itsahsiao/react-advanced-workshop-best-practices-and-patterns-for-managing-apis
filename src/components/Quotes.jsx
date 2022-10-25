@@ -1,93 +1,146 @@
 import { useEffect, useState, useRef } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Pagination from "./Pagination";
 import LazyLoader from "./LazyLoader";
 import { fetchQuotes, postQuote } from "../api/quote.api";
 
-const IDLE = "IDLE";
-const PENDING = "PENDING";
-const SUCCESS = "SUCCESS";
-const ERROR = "ERROR";
+// const IDLE = "IDLE";
+// const PENDING = "PENDING";
+// const SUCCESS = "SUCCESS";
+// const ERROR = "ERROR";
 
-const Quotes = props => {
-  const [quotes, setQuotes] = useState([]);
+const Quotes = (props) => {
+  // const [quotes, setQuotes] = useState([]);
   const [page, setPage] = useState(1);
   const [form, setForm] = useState({
     quote: "",
     author: "",
   });
 
-  const abortRef = useRef({});
-  const [fetchQuotesStatus, setFetchQuotesStatus] = useState(IDLE);
+  const queryClient = useQueryClient();
 
-  const onFormChange = e => {
-    setForm(state => ({
+  const {
+    data: quotes = [],
+    isLoading: isFetchQuotesLoading,
+    isFetching: isFetchedQuotesFetching,
+    isError: isFetchQuotesError,
+  } = useQuery(
+    ["quotes", page],
+    async (context) => {
+      queryClient.cancelQueries(["quotes", page]);
+      const response = await fetchQuotes(
+        { page },
+        {
+          signal: context.signal,
+        }
+      );
+      return response.data;
+    },
+    {
+      keepPreviousData: true,
+    }
+  );
+
+  const {
+    mutate: initPostQuote,
+    isLoading: isPostQuoteLoading,
+    isError: isPostQuoteError,
+  } = useMutation(
+    async (data) => {
+      return postQuote(data);
+    },
+    {
+      onSuccess: (response) => {
+        console.log("on success", response);
+        setForm({
+          author: "",
+          quote: "",
+        });
+        // this approach would update the quotes, but what happens if another user updates the quotes in the meantime?
+        // queryClient.setQueryData(["quotes", page], [response.data, ...quotes]);
+        // tell react-query to run the api call again at page 1
+        queryClient.invalidateQueries(["quotes", 1]);
+      },
+    }
+  );
+
+  // console.log("quotes", quotes);
+
+  // const abortRef = useRef({});
+  // const [fetchQuotesStatus, setFetchQuotesStatus] = useState(IDLE);
+
+  const onFormChange = (e) => {
+    setForm((state) => ({
       ...state,
       [e.target.name]: e.target.value,
     }));
   };
 
-  const initFetchQuotes = async page => {
-    try {
-      if (typeof abortRef.current === "function") {
-        abortRef.current();
-      }
-      const controller = new AbortController();
-      abortRef.current = controller.abort.bind(controller);
-      setFetchQuotesStatus(PENDING);
-      const quotesData = await fetchQuotes(
-        { page },
-        {
-          signal: controller.signal,
-        }
-      );
+  // const initFetchQuotes = async page => {
+  //   try {
+  //     if (typeof abortRef.current === "function") {
+  //       abortRef.current();
+  //     }
+  //     const controller = new AbortController();
+  //     abortRef.current = controller.abort.bind(controller);
+  //     setFetchQuotesStatus(PENDING);
+  //     const quotesData = await fetchQuotes(
+  //       { page },
+  //       {
+  //         signal: controller.signal,
+  //       }
+  //     );
 
-      const num = Math.random();
-      if (num < 0.5) throw new Error("Oops, something went wrong");
-      setQuotes(quotesData.data);
-      setFetchQuotesStatus(SUCCESS);
-    } catch (error) {
-      setFetchQuotesStatus(ERROR);
+  //     const num = Math.random();
+  //     if (num < 0.5) throw new Error("Oops, something went wrong");
+  //     setQuotes(quotesData.data);
+  //     setFetchQuotesStatus(SUCCESS);
+  //   } catch (error) {
+  //     setFetchQuotesStatus(ERROR);
 
-      if (error.name === "CanceledError") {
-        console.warn(`Request for page ${page} was cancelled`);
-      } else {
-        console.error(error);
-      }
-    }
-  };
+  //     if (error.name === "CanceledError") {
+  //       console.warn(`Request for page ${page} was cancelled`);
+  //     } else {
+  //       console.error(error);
+  //     }
+  //   }
+  // };
 
   const onNext = () => {
-    setPage(page => page + 1);
+    setPage((page) => page + 1);
   };
 
   const onPrev = () => {
     if (page === 1) return;
-    setPage(page => page - 1);
+    setPage((page) => page - 1);
   };
 
-  const onSubmitQuote = async e => {
+  const onSubmitQuote = async (e) => {
     e.preventDefault();
-    const response = await postQuote(form);
-    if (response.data.id) {
-      const { id, quote, author } = response.data;
-      setQuotes(quotes => [
-        {
-          id,
-          quote,
-          author,
-        },
-        ...quotes,
-      ]);
-    }
-    setForm({
-      quote: "",
-      author: "",
-    });
+    if (!form.quote || form.author) return;
+    initPostQuote(form);
+
+    // const response = await postQuote(form);
+    // if (response.data.id) {
+    //   const { id, quote, author } = response.data;
+    //   setQuotes(quotes => [
+    //     {
+    //       id,
+    //       quote,
+    //       author,
+    //     },
+    //     ...quotes,
+    //   ]);
+    // }
+    // setForm({
+    //   quote: "",
+    //   author: "",
+    // });
   };
 
-  useEffect(() => {
-    initFetchQuotes(page);
-  }, [page]);
+  // useEffect(() => {
+  //   initFetchQuotes(page);
+  // }, [page]);
 
   return (
     <div className="max-w-xl mx-auto">
@@ -117,7 +170,7 @@ const Quotes = props => {
       </div>
       <h2 className="font-semibold text-2xl mb-4">Quotes</h2>
       <div>
-        {quotes.map(quote => {
+        {quotes.map((quote) => {
           return (
             <blockquote
               key={quote.id}
@@ -135,10 +188,16 @@ const Quotes = props => {
           );
         })}
       </div>
-      <LazyLoader show={fetchQuotesStatus === PENDING}>
+      <LazyLoader
+        show={isFetchQuotesLoading || isFetchedQuotesFetching}
+        delay={1000}
+      >
         <p className="text-center">Loading data...</p>
       </LazyLoader>
-      {fetchQuotesStatus === ERROR ? (
+      {/* {isFetchQuotesLoading || isFetchedQuotesFetching ? (
+        <p className="text-center">Loading data...</p>
+      ) : null} */}
+      {isFetchQuotesError ? (
         <div className="text-center my-4 space-y-4">
           <p className="text-red-700">Error loading data.</p>
           <button
