@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import Pagination from "./Pagination";
 import LazyLoader from "./LazyLoader";
-import axios from "axios";
+import { fetchQuotes, postQuote } from '../api/quote.api';
 
 const IDLE = "IDLE";
 const PENDING = "PENDING";
@@ -34,8 +34,8 @@ const Quotes = props => {
       const controller = new AbortController();
       abortRef.current = controller.abort.bind(controller);
       setFetchQuotesStatus(PENDING);
-      const quotesData = await axios.get(
-        `http://localhost:4000/quotes?_page=${page}`,
+      const quotesData = await fetchQuotes(
+        { page },
         {
           signal: controller.signal,
         }
@@ -67,7 +67,7 @@ const Quotes = props => {
 
   const onSubmitQuote = async e => {
     e.preventDefault();
-    const response = await axios.post("http://localhost:4000/quotes", form);
+    const response = await postQuote(form);
     if (response.data.id) {
       const { id, quote, author } = response.data;
       setQuotes(quotes => [
