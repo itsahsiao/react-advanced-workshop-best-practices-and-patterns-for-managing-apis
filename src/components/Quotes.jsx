@@ -2,17 +2,20 @@ import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import Pagination from "./Pagination";
 
+const IDLE = "IDLE";
+const PENDING = "PENDING";
+const SUCCESS = "SUCCESS";
+const ERROR = "ERROR";
+
 const Quotes = (props) => {
   const [quotes, setQuotes] = useState([]);
   const [page, setPage] = useState(1);
   const abortRef = useRef(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
+  const [fetchQuotesStatus, setFetchQuotesStatus] = useState(IDLE);
 
   const initFetchQuotes = async (page) => {
     try {
-      setIsError(false);
-      setIsLoading(true);
+      setFetchQuotesStatus(PENDING);
       // abortRef.current?.(); // abort previous if there is one defined
       // if (typeof abortRef.current === 'function') abortRef.current();
 
@@ -39,15 +42,14 @@ const Quotes = (props) => {
         // }
       );
       setQuotes(quotesData.data);
+      setFetchQuotesStatus(SUCCESS);
     } catch (error) {
       console.error(error);
       if (error.name === "CanceledError") {
         console.warn(`Previous request for ${page} was cancelled`);
       } else {
-        setIsError(true);
+        setFetchQuotesStatus(ERROR);
       }
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -69,17 +71,16 @@ const Quotes = (props) => {
     <div className="max-w-xl mx-auto">
       <h2 className="font-semibold text-2xl mb-4">Quotes</h2>
 
+      {fetchQuotesStatus === PENDING ? <p>Loading quotes...</p> : null}
+      {fetchQuotesStatus === ERROR ? (
+        <div>
+          <p>Something went wrong...</p>
+          <button onClick={() => initFetchQuotes(page)}>Retry</button>
+        </div>
+      ) : null}
+
       <div>
         <Pagination page={page} onPrev={onPrev} onNext={onNext} />
-
-        {isLoading ? <p>Loading quotes...</p> : null}
-        {isError ? (
-          <div>
-            <p>Something went wrong...</p>
-            <button onClick={() => initFetchQuotes(page)}>Retry</button>
-          </div>
-        ) : null}
-
         {quotes.map((quote) => {
           return (
             <blockquote
