@@ -1,14 +1,26 @@
+import axios from "axios";
+import { useEffect } from "react";
 import { useState } from "react";
 
-const Quotes = props => {
+const Quotes = (props) => {
   const [quotes, setQuotes] = useState([]);
+
+  const initFetchQuotes = async () => {
+    const response = await axios.get("http://localhost:4000/quotes");
+    console.log("response", response);
+    setQuotes(response.data);
+  };
+
+  useEffect(() => {
+    initFetchQuotes();
+  }, []);
 
   return (
     <div className="max-w-xl mx-auto">
       <h2 className="font-semibold text-2xl mb-4">Quotes</h2>
       <div>
         {quotes.length ? (
-          quotes.map(quote => {
+          quotes.map((quote) => {
             return (
               <blockquote
                 key={quote.id}
