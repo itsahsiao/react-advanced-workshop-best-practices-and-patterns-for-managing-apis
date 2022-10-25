@@ -1,11 +1,11 @@
+import { Outlet } from "react-router-dom";
 import "./App.css";
-import Quotes from "./components/Quotes";
 
 function App() {
   return (
     <div className="App">
       <main className="container mx-auto mt-8 ">
-        <Quotes />
+        <Outlet />
       </main>
     </div>
   );
